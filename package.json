@@ -1,0 +1,35 @@
+{
+  "name": "@ora-io/agent-sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript client for the ORA Agent Bot API",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@ora-io/shared": "workspace:*",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "publishConfig": { "access": "public" }
+}
