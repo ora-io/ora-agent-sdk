@@ -1,0 +1,28 @@
+import { describe, expect, it } from 'vitest'
+import { POLYMARKET_CAPABILITIES, validateOrderForVenue } from '../src/contracts/venue-capabilities'
+
+const ok = { side: 'buy', orderType: 'limit', timeInForce: 'gtc' } as const
+
+describe('validateOrderForVenue (polymarket)', () => {
+  it('accepts limit+gtc and market+ioc', () => {
+    expect(validateOrderForVenue(ok, POLYMARKET_CAPABILITIES)).toEqual([])
+    expect(validateOrderForVenue({ side: 'sell', orderType: 'market', timeInForce: 'ioc' }, POLYMARKET_CAPABILITIES)).toEqual([])
+  })
+
+  it('rejects limit+ioc with TIF_NOT_SUPPORTED_FOR_ORDER_TYPE', () => {
+    const issues = validateOrderForVenue({ ...ok, timeInForce: 'ioc' }, POLYMARKET_CAPABILITIES)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ field: 'timeInForce', code: 'TIF_NOT_SUPPORTED_FOR_ORDER_TYPE' })
+  })
+
+  it('rejects market+gtd with TIF_NOT_SUPPORTED_FOR_ORDER_TYPE', () => {
+    const issues = validateOrderForVenue({ side: 'buy', orderType: 'market', timeInForce: 'gtd' }, POLYMARKET_CAPABILITIES)
+    expect(issues[0].code).toBe('TIF_NOT_SUPPORTED_FOR_ORDER_TYPE')
+  })
+
+  it('exposes the canonical matrix', () => {
+    expect(POLYMARKET_CAPABILITIES.sides).toEqual(['buy', 'sell'])
+    expect(POLYMARKET_CAPABILITIES.timeInForceByOrderType.limit).toEqual(['gtc', 'gtd'])
+    expect(POLYMARKET_CAPABILITIES.timeInForceByOrderType.market).toEqual(['fok', 'ioc'])
+  })
+})
