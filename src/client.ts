@@ -3,6 +3,7 @@ import { OraError } from './errors'
 import { FundsResource } from './resources/funds'
 import { PositionsResource } from './resources/positions'
 import { ThoughtsResource } from './resources/thoughts'
+import { OrdersResource } from './resources/orders'
 import type { Reason } from './contracts/reason'
 import type { SdkFundListItem } from './contracts/entities'
 
@@ -20,6 +21,7 @@ export class OraClient {
   readonly funds: FundsResource
   readonly positions: PositionsResource
   readonly thoughts: ThoughtsResource
+  readonly orders: OrdersResource
   private readonly fundPrefix: string
   private cachedFund?: SdkFundListItem
 
@@ -48,6 +50,7 @@ export class OraClient {
     this.funds = new FundsResource(this)
     this.positions = new PositionsResource(this)
     this.thoughts = new ThoughtsResource(this)
+    this.orders = new OrdersResource(this)
   }
 
   /** Lazily resolve and cache the single fund this key is scoped to. */
