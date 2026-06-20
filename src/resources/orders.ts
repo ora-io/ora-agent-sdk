@@ -1,11 +1,12 @@
 import type { OraClient } from '../client'
 import type { SdkOrder, OrderAck, CancelResult, BulkCancelResult } from '../contracts/entities'
 import type { OrderStatus } from '../contracts/order-status'
+import { isTerminal } from '../contracts/order-status'
 import type { OrderIntent, Outcome, TimeInForce } from '../contracts/order-intent'
 import { OrderIntentSchema } from '../contracts/order-intent'
 import type { Reason } from '../contracts/reason'
 import { POLYMARKET_CAPABILITIES, validateOrderForVenue } from '../contracts/venue-capabilities'
-import { OraValidationError, OraVenueUnsupportedError, OraDuplicateOrderError } from '../errors'
+import { OraValidationError, OraVenueUnsupportedError, OraOrderRejected, OraRiskRejected, OraTimeoutError, OraDuplicateOrderError } from '../errors'
 
 export class OrdersResource {
   constructor(private readonly client: OraClient) {}
@@ -70,5 +71,56 @@ export class OrdersResource {
       throw new OraValidationError('cancelMany requires 1-100 orderIds', { issues: { length: orderIds.length } })
     }
     return this.client.http.request<BulkCancelResult>('POST', '/agent/bot/orders/cancel-bulk', { body: { orderIds } })
+  }
+
+  async waitForFill(
+    orderId: string,
+    opts: { timeoutMs?: number; pollMs?: number; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
+  ): Promise<SdkOrder> {
+    const timeoutMs = opts.timeoutMs ?? 30_000
+    const pollMs = opts.pollMs ?? 1_000
+    const now = opts.now ?? (() => Date.now())
+    const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+    const deadline = now() + timeoutMs
+
+    for (;;) {
+      const order = await this.get(orderId)
+      if (isTerminal(order.status)) {
+        if (order.status === 'rejected') {
+          throw new OraOrderRejected(`order ${orderId} was rejected by the venue`, { orderId, rawReason: order.rejectReason ?? undefined })
+        }
+        if (order.status === 'risk_rejected') {
+          // S7: the polled row carries a free-text reject string, not the typed
+          // risk enum, so surface it as `detail` (not `reason`) to avoid
+          // implying it's one of the typed risk-reason values.
+          throw new OraRiskRejected(`order ${orderId} was rejected by risk controls`, { orderId, detail: order.rejectReason ?? undefined })
+        }
+        return order // filled / partially_filled / cancelled / timeout
+      }
+      if (now() >= deadline) {
+        throw new OraTimeoutError(orderId, order.status)
+      }
+      await sleep(pollMs)
+    }
+  }
+
+  async submitAndWait(
+    intent: Omit<OrderIntent, 'clientOrderId'> & { clientOrderId?: string },
+    opts: { timeoutMs?: number; pollMs?: number } = {},
+  ): Promise<SdkOrder> {
+    const clientOrderId = intent.clientOrderId ?? crypto.randomUUID()
+    let ack: OrderAck
+    try {
+      ack = await this.submit({ ...intent, clientOrderId })
+    } catch (err) {
+      if (err instanceof OraDuplicateOrderError) {
+        const existing = (await this.list()).find((o) => o.clientOrderId === clientOrderId)
+        if (!existing) throw err // outside the recent-orders window
+        ack = { orderId: existing.id, venueOrderId: existing.venueOrderId }
+      } else {
+        throw err
+      }
+    }
+    return this.waitForFill(ack.orderId, opts)
   }
 }
