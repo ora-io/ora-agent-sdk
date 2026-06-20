@@ -1,5 +1,6 @@
 import { OraHttpClient, type FetchLike } from './http'
 import { OraError } from './errors'
+import { FundsResource } from './resources/funds'
 import type { Reason } from './contracts/reason'
 import type { SdkFundListItem } from './contracts/entities'
 
@@ -14,6 +15,7 @@ export interface OraClientOptions {
 
 export class OraClient {
   readonly http: OraHttpClient
+  readonly funds: FundsResource
   private readonly fundPrefix: string
   private cachedFund?: SdkFundListItem
 
@@ -39,6 +41,7 @@ export class OraClient {
       fetch: fetchImpl,
       maxRetries: opts.maxRetries,
     })
+    this.funds = new FundsResource(this)
   }
 
   /** Lazily resolve and cache the single fund this key is scoped to. */
