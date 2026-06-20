@@ -115,3 +115,92 @@ export class OraNetworkError extends OraError {
     this.cause = cause
   }
 }
+
+interface ErrorEnvelope {
+  code: string
+  message: string
+  requestId?: string
+  issues?: unknown
+  detail?: unknown
+  available?: string
+  required?: string
+  orderId?: string
+  reason?: string
+  rawReason?: string
+  status?: string
+  venueReason?: string
+  clientOrderId?: string
+  retryAfterMs?: number
+  [k: string]: unknown
+}
+
+export function toOraError(status: number, body: unknown, headers?: Headers): OraError {
+  const err = (body as { error?: ErrorEnvelope } | undefined)?.error
+  const code = err?.code ?? statusToCode(status)
+  const message = err?.message ?? code
+  const requestId = err?.requestId
+  const mapped = mapByCode(code, message, err, requestId, headers)
+  mapped.httpStatus = status // M1: retry decisions branch on the real HTTP status
+  return mapped
+}
+
+function mapByCode(
+  code: string,
+  message: string,
+  err: ErrorEnvelope | undefined,
+  requestId: string | undefined,
+  headers: Headers | undefined,
+): OraError {
+  switch (code) {
+    case 'ORDER_RISK_REJECTED':
+      return new OraRiskRejected(message, { orderId: err?.orderId, reason: err?.reason, detail: err?.detail, requestId })
+    case 'INSUFFICIENT_AVAILABLE_BALANCE':
+      return new OraInsufficientBalance(message, { available: err?.available, required: err?.required, requestId })
+    case 'ORDER_REJECTED':
+      return new OraOrderRejected(message, { orderId: err?.orderId, reason: err?.reason, rawReason: err?.rawReason, requestId })
+    case 'DUPLICATE_CLIENT_ORDER_ID':
+      // S3: the body has no clientOrderId; submit() re-attaches the local one.
+      return new OraDuplicateOrderError(message, { requestId })
+    case 'ORDER_NOT_CANCELLABLE':
+    case 'ORDER_NOT_AT_VENUE':
+    case 'CANCEL_REFUSED':
+      return new OraOrderStateError(code, message, { status: err?.status, venueReason: err?.venueReason, requestId })
+    case 'ORDER_NOT_SUPPORTED_ON_VENUE':
+    case 'VENUE_NOT_SUPPORTED':
+      return new OraVenueUnsupportedError(message, { code, issues: err?.issues, requestId })
+    case 'UNAUTHORIZED':
+    case 'FORBIDDEN':
+      return new OraAuthError(code, message, requestId)
+    case 'NOT_FOUND':
+    case 'ORDER_NOT_FOUND':
+    case 'FUND_NOT_FOUND':
+      return new OraNotFoundError(message, { code, requestId })
+    case 'RATE_LIMITED':
+      // S2: filter doesn't send retryAfterMs in the body; read the Retry-After header.
+      return new OraRateLimitError(message, { retryAfterMs: parseRetryAfterMs(headers), requestId })
+    case 'EMPTY_ORDER_IDS': // S1: spec §6 names this; treat as a validation error
+    case 'VALIDATION_ERROR':
+      return new OraValidationError(message, { code, issues: err?.issues, requestId })
+    default:
+      return new OraError(code, message, requestId)
+  }
+}
+
+function parseRetryAfterMs(headers?: Headers): number | undefined {
+  const raw = headers?.get('retry-after')
+  if (!raw) return undefined
+  const secs = Number(raw)
+  return Number.isFinite(secs) ? Math.round(secs * 1000) : undefined
+}
+
+function statusToCode(status: number): string {
+  switch (status) {
+    case 400: return 'VALIDATION_ERROR'
+    case 401: return 'UNAUTHORIZED'
+    case 403: return 'FORBIDDEN'
+    case 404: return 'NOT_FOUND'
+    case 422: return 'VALIDATION_ERROR'
+    case 429: return 'RATE_LIMITED'
+    default: return status >= 500 ? 'INTERNAL_ERROR' : 'UNKNOWN_ERROR'
+  }
+}
