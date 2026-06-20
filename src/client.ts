@@ -2,6 +2,7 @@ import { OraHttpClient, type FetchLike } from './http'
 import { OraError } from './errors'
 import { FundsResource } from './resources/funds'
 import { PositionsResource } from './resources/positions'
+import { ThoughtsResource } from './resources/thoughts'
 import type { Reason } from './contracts/reason'
 import type { SdkFundListItem } from './contracts/entities'
 
@@ -18,6 +19,7 @@ export class OraClient {
   readonly http: OraHttpClient
   readonly funds: FundsResource
   readonly positions: PositionsResource
+  readonly thoughts: ThoughtsResource
   private readonly fundPrefix: string
   private cachedFund?: SdkFundListItem
 
@@ -45,6 +47,7 @@ export class OraClient {
     })
     this.funds = new FundsResource(this)
     this.positions = new PositionsResource(this)
+    this.thoughts = new ThoughtsResource(this)
   }
 
   /** Lazily resolve and cache the single fund this key is scoped to. */
