@@ -1,5 +1,5 @@
 import type { OraClient } from '../client'
-import type { SdkOrder, OrderAck } from '../contracts/entities'
+import type { SdkOrder, OrderAck, CancelResult, BulkCancelResult } from '../contracts/entities'
 import type { OrderStatus } from '../contracts/order-status'
 import type { OrderIntent, Outcome, TimeInForce } from '../contracts/order-intent'
 import { OrderIntentSchema } from '../contracts/order-intent'
@@ -59,5 +59,16 @@ export class OrdersResource {
 
   marketSell(p: { conditionId: string; outcome: Outcome; size: string; reason: Reason; timeInForce?: TimeInForce; clientOrderId?: string }): Promise<OrderAck> {
     return this.submit({ side: 'sell', orderType: 'market', timeInForce: p.timeInForce ?? 'ioc', price: null, size: p.size, conditionId: p.conditionId, outcome: p.outcome, reason: p.reason, clientOrderId: p.clientOrderId })
+  }
+
+  async cancel(orderId: string): Promise<CancelResult> {
+    return this.client.http.request<CancelResult>('POST', `/agent/bot/orders/${orderId}/cancel`)
+  }
+
+  async cancelMany(orderIds: string[]): Promise<BulkCancelResult> {
+    if (orderIds.length < 1 || orderIds.length > 100) {
+      throw new OraValidationError('cancelMany requires 1-100 orderIds', { issues: { length: orderIds.length } })
+    }
+    return this.client.http.request<BulkCancelResult>('POST', '/agent/bot/orders/cancel-bulk', { body: { orderIds } })
   }
 }
