@@ -17,7 +17,20 @@ describe('validateOrderForVenue (polymarket)', () => {
 
   it('rejects market+gtd with TIF_NOT_SUPPORTED_FOR_ORDER_TYPE', () => {
     const issues = validateOrderForVenue({ side: 'buy', orderType: 'market', timeInForce: 'gtd' }, POLYMARKET_CAPABILITIES)
-    expect(issues[0].code).toBe('TIF_NOT_SUPPORTED_FOR_ORDER_TYPE')
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.code).toBe('TIF_NOT_SUPPORTED_FOR_ORDER_TYPE')
+  })
+
+  it('rejects unsupported side with SIDE_NOT_SUPPORTED_ON_VENUE', () => {
+    const issues = validateOrderForVenue({ side: 'short' as never, orderType: 'limit', timeInForce: 'gtc' }, POLYMARKET_CAPABILITIES)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.code).toBe('SIDE_NOT_SUPPORTED_ON_VENUE')
+  })
+
+  it('rejects unknown orderType with ORDER_TYPE_NOT_SUPPORTED_ON_VENUE', () => {
+    const issues = validateOrderForVenue({ side: 'buy', orderType: 'stop' as never, timeInForce: 'gtc' }, POLYMARKET_CAPABILITIES)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.code).toBe('ORDER_TYPE_NOT_SUPPORTED_ON_VENUE')
   })
 
   it('exposes the canonical matrix', () => {
