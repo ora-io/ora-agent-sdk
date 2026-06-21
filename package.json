@@ -2,6 +2,7 @@
   "name": "@ora-io/agent-sdk",
   "version": "0.1.0",
   "description": "Official TypeScript client for the ORA Agent Bot API",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -13,7 +14,7 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE"],
   "engines": { "node": ">=18" },
   "scripts": {
     "build": "tsup",
@@ -25,7 +26,6 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@ora-io/shared": "workspace:*",
     "@types/node": "^20.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",

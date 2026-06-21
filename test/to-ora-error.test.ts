@@ -45,6 +45,26 @@ describe('toOraError', () => {
     expect(toOraError(400, env('EMPTY_ORDER_IDS'))).toBeInstanceOf(OraValidationError)
   })
 
+  it('surfaces server-side validation issues sent under the `errors` key', () => {
+    // The backend reports DTO validation failures with the zod issue list under
+    // `errors` (not `issues`); the SDK must still expose them on `.issues`.
+    const issues = [{ code: 'invalid_type', path: ['size'], message: 'Required' }]
+    const e = toOraError(400, env('VALIDATION_ERROR', { errors: issues }))
+    expect(e).toBeInstanceOf(OraValidationError)
+    expect((e as OraValidationError).issues).toEqual(issues)
+  })
+
+  it('surfaces server-side validation issues sent under the `details` key', () => {
+    const details = [{ field: 'amountUsdc', message: 'must be a positive decimal string' }]
+    const e = toOraError(422, env('VALIDATION_ERROR', { details }))
+    expect((e as OraValidationError).issues).toEqual(details)
+  })
+
+  it('still reads the legacy `issues` key when present', () => {
+    const e = toOraError(400, env('VALIDATION_ERROR', { issues: [{ path: ['x'] }] }))
+    expect((e as OraValidationError).issues).toEqual([{ path: ['x'] }])
+  })
+
   it('reads the Retry-After header into retryAfterMs for 429', () => {
     const e = toOraError(429, env('RATE_LIMITED'), new Headers({ 'retry-after': '2' }))
     expect(e).toBeInstanceOf(OraRateLimitError)

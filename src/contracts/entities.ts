@@ -37,7 +37,7 @@ export interface SdkOrder {
   metadata: Record<string, unknown> | null
   createdAt: string
   updatedAt: string
-  // listOrders enrichment (undefined on market-cache miss)
+  // present on list responses; may be absent if market metadata isn't available yet
   marketQuestion?: string
   marketEndDate?: string
   polymarketUrl?: string
@@ -55,7 +55,7 @@ export interface SdkPosition {
   /** non-null once the market resolves */
   realizedPnl: string | null
   marketStatus: 'active' | 'resolved_win' | 'resolved_loss' | 'expired'
-  /** finding-② spread visibility, optional */
+  /** Current bid/ask spread for this market, if available. */
   currentSpread?: string | null
   marketQuestion?: string
   marketEndDate?: string
@@ -86,7 +86,10 @@ export interface SdkFundDetail extends SdkFundListItem {
 export interface SdkFundOverview {
   agentName: string
   fundName: string
+  /** Fund lifecycle status: active / paused / closing / closed. */
   fundStatus: string
+  /** Whether your agent is currently bound to this fund (active / unbound). */
+  bindingStatus: string
   navPerShare: string
   aum: string
   totalShares: string
@@ -95,8 +98,34 @@ export interface SdkFundOverview {
   rejectedCount: number
   positionsCount: number
   investorsCount: number
+  /** Largest single investor's share of the fund, as a percentage (0–100). */
+  topHolderPct: number
+  /** USDC available to deploy into new orders right now. Lower than
+   *  `totalBalance` when open orders or pending fees have funds earmarked. */
   availableBalance: number
+  /** USDC currently locked against your open orders. */
   reservedBalance: number
+  /** Performance fee you've earned that hasn't been paid out yet, in USDC.
+   *  Not counted in `availableBalance`. Always >= 0. */
+  pendingCarryBalance: number
+  /** Total USDC held for this fund's trading account. */
+  totalBalance: number
+  /** Fund NAV return over the trailing 30 days, as a decimal string (e.g. "0.08"). */
+  navReturn30d: string
+  /** Net investor inflow minus outflow over the trailing 30 days, in USDC. */
+  netFlow30d: number
+  /** The fund's current subscription/redemption cycle. Use `status` and the
+   *  pending counts to time strategy decisions — e.g. avoid opening large
+   *  positions when a sizeable redemption is pending settlement. `null` if the
+   *  fund has no open cycle. */
+  currentCycle: {
+    id: string
+    cycleNumber: number
+    status: string
+    cutoffTime: string
+    pendingSubscriptionCount: number
+    pendingRedemptionCount: number
+  } | null
 }
 
 export interface SdkReasoning {

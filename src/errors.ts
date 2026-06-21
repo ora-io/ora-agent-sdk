@@ -121,6 +121,10 @@ interface ErrorEnvelope {
   message: string
   requestId?: string
   issues?: unknown
+  /** Field-level validation issues; the server sends these under `errors`. */
+  errors?: unknown
+  /** Field-level validation issues for non-schema checks. */
+  details?: unknown
   detail?: unknown
   available?: string
   required?: string
@@ -140,7 +144,7 @@ export function toOraError(status: number, body: unknown, headers?: Headers): Or
   const message = err?.message ?? code
   const requestId = err?.requestId
   const mapped = mapByCode(code, message, err, requestId, headers)
-  mapped.httpStatus = status // M1: retry decisions branch on the real HTTP status
+  mapped.httpStatus = status // retry decisions branch on the real HTTP status
   return mapped
 }
 
@@ -159,7 +163,7 @@ function mapByCode(
     case 'ORDER_REJECTED':
       return new OraOrderRejected(message, { orderId: err?.orderId, reason: err?.reason, rawReason: err?.rawReason, requestId })
     case 'DUPLICATE_CLIENT_ORDER_ID':
-      // S3: the body has no clientOrderId; submit() re-attaches the local one.
+      // the body has no clientOrderId; submit() re-attaches the local one.
       return new OraDuplicateOrderError(message, { requestId })
     case 'ORDER_NOT_CANCELLABLE':
     case 'ORDER_NOT_AT_VENUE':
@@ -167,7 +171,7 @@ function mapByCode(
       return new OraOrderStateError(code, message, { status: err?.status, venueReason: err?.venueReason, requestId })
     case 'ORDER_NOT_SUPPORTED_ON_VENUE':
     case 'VENUE_NOT_SUPPORTED':
-      return new OraVenueUnsupportedError(message, { code, issues: err?.issues, requestId })
+      return new OraVenueUnsupportedError(message, { code, issues: pickIssues(err), requestId })
     case 'UNAUTHORIZED':
     case 'FORBIDDEN':
       return new OraAuthError(code, message, requestId)
@@ -176,14 +180,21 @@ function mapByCode(
     case 'FUND_NOT_FOUND':
       return new OraNotFoundError(message, { code, requestId })
     case 'RATE_LIMITED':
-      // S2: filter doesn't send retryAfterMs in the body; read the Retry-After header.
+      // retryAfterMs isn't in the body; read it from the Retry-After header.
       return new OraRateLimitError(message, { retryAfterMs: parseRetryAfterMs(headers), requestId })
-    case 'EMPTY_ORDER_IDS': // S1: spec §6 names this; treat as a validation error
+    case 'EMPTY_ORDER_IDS':
     case 'VALIDATION_ERROR':
-      return new OraValidationError(message, { code, issues: err?.issues, requestId })
+      return new OraValidationError(message, { code, issues: pickIssues(err), requestId })
     default:
       return new OraError(code, message, requestId)
   }
+}
+
+// Field-level validation detail can arrive under any of three keys depending on
+// the source: `errors` (schema validation), `details` (non-schema checks), or
+// the legacy `issues`. Surface whichever is present on a single `.issues`.
+function pickIssues(err: ErrorEnvelope | undefined): unknown {
+  return err?.issues ?? err?.errors ?? err?.details
 }
 
 function parseRetryAfterMs(headers?: Headers): number | undefined {

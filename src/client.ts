@@ -74,7 +74,11 @@ export class OraClient {
     return match
   }
 
-  /** Build a Reason scaffold for attaching to an order intent. */
+  /**
+   * Build a {@link Reason} to attach to an order intent. `confidence` is a
+   * decimal string in `[0, 1]` (e.g. `'0.6'`), max 4 decimal places — a string,
+   * like every numeric value in the SDK, to avoid floating-point drift.
+   */
   reason(title: string, opts: { summary: string; body: string[]; confidence: string }): Reason {
     return { title, summary: opts.summary, body: opts.body, confidence: opts.confidence }
   }

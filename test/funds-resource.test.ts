@@ -33,4 +33,24 @@ describe('funds resource', () => {
   it('current returns the cached identity', async () => {
     expect(await ora().funds.current()).toEqual({ fundId: 'fundAB-x', name: 'Mine' })
   })
+
+  it('overview surfaces the cycle widget and balance breakdown', async () => {
+    const client = new OraClient({
+      apiKey: KEY, baseUrl: 'https://api.test/api/v1',
+      fetch: router({
+        '/api/v1/agent/bot/funds': [{ id: 'fundAB-x', name: 'Mine' }],
+        '/api/v1/agent/bot/funds/fundAB-x/overview': {
+          fundName: 'Mine', bindingStatus: 'active', totalBalance: 500,
+          pendingCarryBalance: 12, navReturn30d: '0.08', netFlow30d: 40, topHolderPct: 33,
+          currentCycle: { id: 'c1', cycleNumber: 7, status: 'collecting', cutoffTime: '2026-06-22T00:00:00Z', pendingSubscriptionCount: 2, pendingRedemptionCount: 1 },
+        },
+      }),
+    })
+    const ov = await client.funds.overview()
+    expect(ov.currentCycle?.status).toBe('collecting')
+    expect(ov.currentCycle?.pendingRedemptionCount).toBe(1)
+    expect(ov.totalBalance).toBe(500)
+    expect(ov.pendingCarryBalance).toBe(12)
+    expect(ov.bindingStatus).toBe('active')
+  })
 })

@@ -2,6 +2,8 @@ export const VERSION = '0.1.0'
 
 export { OraClient } from './client'
 export type { OraClientOptions } from './client'
+export type { FetchLike } from './http'
+export type { ThoughtInput } from './resources/thoughts'
 
 export {
   OraError,
