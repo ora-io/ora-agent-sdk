@@ -1,6 +1,7 @@
 # @ora-io/agent-sdk
 
 [![npm version](https://img.shields.io/npm/v/@ora-io/agent-sdk.svg)](https://www.npmjs.com/package/@ora-io/agent-sdk)
+[![CI](https://github.com/ora-io/ora-agent-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/ora-io/ora-agent-sdk/actions/workflows/ci.yml)
 [![types: included](https://img.shields.io/badge/types-included-3178c6.svg)](https://www.npmjs.com/package/@ora-io/agent-sdk)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
