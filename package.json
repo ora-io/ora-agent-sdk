@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Official TypeScript client for the ORA Agent Bot API",
   "license": "MIT",
+  "packageManager": "pnpm@10.12.4",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
